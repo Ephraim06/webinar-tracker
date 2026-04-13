@@ -1,4 +1,5 @@
-import { supabase } from './supabase.js';
+// API base URL
+const API_URL = "https://wiretree-digital.com/api";
 
 // DOM elements
 const webinarForm = document.getElementById('webinarForm');
@@ -20,32 +21,26 @@ async function init() {
   await loadWebinars();
   populateMonthFilter();
   updateSummaryStats();
-
-  document.getElementById('webinarDateTime').value = webinar.date_time.slice(
-    0,
-    16
-  );
 }
 
-// Load webinars from Supabase
+// =========================
+// LOAD WEBINARS (GET)
+// =========================
 async function loadWebinars() {
   try {
-    const { data, error } = await supabase
-      .from('webinars')
-      .select('*')
-      .order('date_time', { ascending: false });
-
-    if (error) throw error;
+    const res = await fetch(`${API_URL}/get-webinars.php`);
+    const data = await res.json();
 
     webinars = data;
     renderWebinarList();
   } catch (error) {
     console.error('Error loading webinars:', error);
-    alert('Error loading webinars. Please check console for details.');
   }
 }
 
-// Form submission handler
+// =========================
+// CREATE WEBINAR (POST)
+// =========================
 webinarForm.addEventListener('submit', async function (e) {
   e.preventDefault();
 
@@ -59,14 +54,17 @@ webinarForm.addEventListener('submit', async function (e) {
   };
 
   try {
-    const { data, error } = await supabase
-      .from('webinars')
-      .insert([webinar])
-      .select();
+    const res = await fetch(`${API_URL}/create-webinar.php`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(webinar)
+    });
 
-    if (error) throw error;
+    const data = await res.json();
 
-    webinars.unshift(data[0]);
+    webinars.unshift(data);
     webinarForm.reset();
     renderWebinarList();
     updateSummaryStats();
@@ -75,18 +73,23 @@ webinarForm.addEventListener('submit', async function (e) {
     alert('Webinar saved successfully!');
   } catch (error) {
     console.error('Error saving webinar:', error);
-    alert('Error saving webinar. Please check console for details.');
   }
 });
 
-// Delete webinar handler
+// =========================
+// DELETE WEBINAR
+// =========================
 window.deleteWebinar = async function (id) {
   if (!confirm('Are you sure you want to delete this webinar?')) return;
 
   try {
-    const { error } = await supabase.from('webinars').delete().eq('id', id);
-
-    if (error) throw error;
+    await fetch(`${API_URL}/delete-webinar.php`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ id })
+    });
 
     webinars = webinars.filter((w) => w.id !== id);
     renderWebinarList();
@@ -96,21 +99,22 @@ window.deleteWebinar = async function (id) {
     alert('Webinar deleted successfully!');
   } catch (error) {
     console.error('Error deleting webinar:', error);
-    alert('Error deleting webinar. Please check console for details.');
   }
 };
 
-// Edit webinar handler
+// =========================
+// UPDATE WEBINAR
+// =========================
 window.editWebinar = async function (id, updatedData) {
   try {
-    const { error } = await supabase
-      .from('webinars')
-      .update(updatedData)
-      .eq('id', id);
+    await fetch(`${API_URL}/update-webinar.php`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ id, ...updatedData })
+    });
 
-    if (error) throw error;
-
-    // Update the local webinars array
     webinars = webinars.map((w) =>
       w.id === id ? { ...w, ...updatedData } : w
     );
@@ -122,11 +126,12 @@ window.editWebinar = async function (id, updatedData) {
     alert('Webinar updated successfully!');
   } catch (error) {
     console.error('Error updating webinar:', error);
-    alert('Error updating webinar. Please check console for details.');
   }
 };
 
-// Render webinar list
+// =========================
+// RENDER TABLE
+// =========================
 function renderWebinarList(filterMonth = '') {
   webinarList.innerHTML = '';
 
@@ -143,7 +148,7 @@ function renderWebinarList(filterMonth = '') {
   if (filteredWebinars.length === 0) {
     webinarList.innerHTML = `
       <tr>
-        <td colspan="6" class="px-4 py-2 text-center text-remax-dark-gray">
+        <td colspan="8" class="px-4 py-2 text-center">
           No webinars found
         </td>
       </tr>
@@ -157,27 +162,16 @@ function renderWebinarList(filterMonth = '') {
 
     row.innerHTML = `
       <td class="px-4 py-2">${webinar.name}</td>
-      <td class="px-4 py-2">${date.toLocaleDateString()} ${date.toLocaleTimeString(
-      [],
-      { hour: '2-digit', minute: '2-digit' }
-    )}</td>
+      <td class="px-4 py-2">${date.toLocaleDateString()} ${date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</td>
       <td class="px-4 py-2">${webinar.duration} min</td>
       <td class="px-4 py-2">${webinar.registrants}</td>
       <td class="px-4 py-2">${webinar.attendees}</td>
       <td class="px-4 py-2">${webinar.host}</td>
       <td class="px-4 py-2">
-        <button onclick="editWebinar('${
-          webinar.id
-        }')" class="text-green-500 hover:text-green-700">
-          Edit
-        </button>
+        <button onclick="editWebinar('${webinar.id}')" class="text-green-500">Edit</button>
       </td>
       <td class="px-4 py-2">
-        <button onclick="deleteWebinar('${
-          webinar.id
-        }')" class="text-red-500 hover:text-red-700">
-          Delete
-        </button>
+        <button onclick="deleteWebinar('${webinar.id}')" class="text-red-500">Delete</button>
       </td>
     `;
 
@@ -185,7 +179,9 @@ function renderWebinarList(filterMonth = '') {
   });
 }
 
-// Populate month filter dropdown
+// =========================
+// FILTER + STATS
+// =========================
 function populateMonthFilter() {
   monthFilter.innerHTML = '<option value="">All Months</option>';
 
@@ -199,7 +195,7 @@ function populateMonthFilter() {
         });
       })
     ),
-  ].sort((a, b) => new Date(a) - new Date(b));
+  ];
 
   months.forEach((month) => {
     const option = document.createElement('option');
@@ -209,7 +205,6 @@ function populateMonthFilter() {
   });
 }
 
-// Update summary statistics
 function updateSummaryStats(filterMonth = '') {
   const filteredWebinars = filterMonth
     ? webinars.filter((w) => {
@@ -222,212 +217,33 @@ function updateSummaryStats(filterMonth = '') {
     : webinars;
 
   const totalWebinars = filteredWebinars.length;
-  const totalDuration = filteredWebinars.reduce(
-    (sum, w) => sum + w.duration,
-    0
-  );
-  const totalRegistrants = filteredWebinars.reduce(
-    (sum, w) => sum + w.registrants,
-    0
-  );
-  const totalAttendees = filteredWebinars.reduce(
-    (sum, w) => sum + w.attendees,
-    0
-  );
+  const totalDuration = filteredWebinars.reduce((sum, w) => sum + w.duration, 0);
+  const totalRegistrants = filteredWebinars.reduce((sum, w) => sum + w.registrants, 0);
+  const totalAttendees = filteredWebinars.reduce((sum, w) => sum + w.attendees, 0);
+
   const attendanceRate =
     totalRegistrants > 0
       ? Math.round((totalAttendees / totalRegistrants) * 100)
       : 0;
 
   summaryStats.innerHTML = `
-    <div class="bg-white p-3 rounded-md shadow">
-      <h4 class="font-medium text-remax-dark-gray">Total Webinars</h4>
-      <p class="text-2xl font-bold text-remax-blue">${totalWebinars}</p>
-    </div>
-    <div class="bg-white p-3 rounded-md shadow">
-      <h4 class="font-medium text-remax-dark-gray">Total Duration</h4>
-      <p class="text-2xl font-bold text-remax-blue">${totalDuration} min</p>
-    </div>
-    <div class="bg-white p-3 rounded-md shadow">
-      <h4 class="font-medium text-remax-dark-gray">Total Attendees</h4>
-      <p class="text-2xl font-bold text-remax-blue">${totalAttendees}</p>
-    </div>
-    <div class="bg-white p-3 rounded-md shadow">
-      <h4 class="font-medium text-remax-dark-gray">Attendance Rate</h4>
-      <p class="text-2xl font-bold text-remax-blue">${attendanceRate}%</p>
-    </div>
+    <div>Total Webinars: ${totalWebinars}</div>
+    <div>Total Duration: ${totalDuration} min</div>
+    <div>Total Attendees: ${totalAttendees}</div>
+    <div>Attendance Rate: ${attendanceRate}%</div>
   `;
 }
 
-// Generate monthly report
-generateReport.addEventListener('click', function () {
-  const selectedMonth = monthFilter.value;
-  if (!selectedMonth) {
-    alert('Please select a month first');
-    return;
-  }
-
-  const filteredWebinars = webinars.filter((w) => {
-    const date = new Date(w.date_time);
-    return (
-      date.toLocaleString('default', { month: 'long', year: 'numeric' }) ===
-      selectedMonth
-    );
-  });
-
-  if (filteredWebinars.length === 0) {
-    alert('No webinars found for the selected month');
-    return;
-  }
-
-  const totalDuration = filteredWebinars.reduce(
-    (sum, w) => sum + w.duration,
-    0
-  );
-  const totalRegistrants = filteredWebinars.reduce(
-    (sum, w) => sum + w.registrants,
-    0
-  );
-  const totalAttendees = filteredWebinars.reduce(
-    (sum, w) => sum + w.attendees,
-    0
-  );
-  const attendanceRate =
-    totalRegistrants > 0
-      ? Math.round((totalAttendees / totalRegistrants) * 100)
-      : 0;
-
-  let webinarItems = '';
-  filteredWebinars.forEach((webinar) => {
-    const date = new Date(webinar.date_time);
-    webinarItems += `
-      <div class="mb-4 pb-4 border-b border-gray-200">
-        <h3 class="font-semibold text-remax-blue">${webinar.name}</h3>
-        <p class="text-sm text-remax-dark-gray">
-          ${date.toLocaleDateString()} • ${webinar.duration} minutes
-        </p>
-        <div class="grid grid-cols-2 gap-2 mt-2">
-          <div>
-            <span class="text-remax-dark-gray">Registrants:</span>
-            <span class="font-medium">${webinar.registrants}</span>
-          </div>
-          <div>
-            <span class="text-remax-dark-gray">Attendees:</span>
-            <span class="font-medium">${webinar.attendees}</span>
-          </div>
-        </div>
-      </div>
-    `;
-  });
-
-  reportContent.innerHTML = `
-    <div class="mb-6">
-      <h2 class="text-2xl font-bold text-remax-blue mb-2">
-        ${selectedMonth} Webinar Report
-      </h2>
-      <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
-        <div class="bg-remax-light-gray p-3 rounded-md">
-          <h4 class="font-medium text-remax-dark-gray">Total Webinars</h4>
-          <p class="text-xl font-bold text-remax-blue">${
-            filteredWebinars.length
-          }</p>
-        </div>
-        <div class="bg-remax-light-gray p-3 rounded-md">
-          <h4 class="font-medium text-remax-dark-gray">Total Duration</h4>
-          <p class="text-xl font-bold text-remax-blue">${totalDuration} min</p>
-        </div>
-        <div class="bg-remax-light-gray p-3 rounded-md">
-          <h4 class="font-medium text-remax-dark-gray">Total Attendees</h4>
-          <p class="text-xl font-bold text-remax-blue">${totalAttendees}</p>
-        </div>
-        <div class="bg-remax-light-gray p-3 rounded-md">
-          <h4 class="font-medium text-remax-dark-gray">Attendance Rate</h4>
-          <p class="text-xl font-bold text-remax-blue">${attendanceRate}%</p>
-        </div>
-      </div>
-    </div>
-    
-    <h3 class="text-xl font-semibold text-remax-dark-blue mb-3">Webinar Details</h3>
-    ${webinarItems}
-    
-    <div class="mt-6 p-4 bg-remax-light-gray rounded-md">
-      <h3 class="font-semibold text-remax-dark-blue mb-2">Key Takeaways</h3>
-      <p class="mb-2">• Conducted ${
-        filteredWebinars.length
-      } webinars with ${totalAttendees} total attendees</p>
-      <p class="mb-2">• Average attendance rate of ${attendanceRate}%</p>
-      <p class="mb-2">• Total training time: ${totalDuration} minutes (${Math.round(
-    totalDuration / 60
-  )} hours)</p>
-      <p>• Average webinar duration: ${Math.round(
-        totalDuration / filteredWebinars.length
-      )} minutes</p>
-    </div>
-  `;
-
-  reportModal.classList.remove('hidden');
-});
-
-// Close modal
-closeModal.addEventListener('click', function () {
-  reportModal.classList.add('hidden');
-});
-
-// Print report
-printReport.addEventListener('click', function () {
-  window.print();
-});
-
-// Export to CSV
-exportReport.addEventListener('click', function () {
-  const selectedMonth = monthFilter.value;
-  const filteredWebinars = webinars.filter((w) => {
-    const date = new Date(w.date_time);
-    return (
-      date.toLocaleString('default', { month: 'long', year: 'numeric' }) ===
-      selectedMonth
-    );
-  });
-
-  let csvContent = 'data:text/csv;charset=utf-8,';
-  csvContent +=
-    'Webinar Name,Date,Time,Duration (min),Registrants,Attendees,Attendance Rate\n';
-
-  filteredWebinars.forEach((webinar) => {
-    const date = new Date(webinar.date_time);
-    const attendanceRate =
-      webinar.registrants > 0
-        ? Math.round((webinar.attendees / webinar.registrants) * 100)
-        : 0;
-
-    csvContent += `"${
-      webinar.name
-    }",${date.toLocaleDateString()},${date.toLocaleTimeString([], {
-      hour: '2-digit',
-      minute: '2-digit',
-    })},${webinar.duration},${webinar.registrants},${
-      webinar.attendees
-    },${attendanceRate}%\n`;
-  });
-
-  const encodedUri = encodeURI(csvContent);
-  const link = document.createElement('a');
-  link.setAttribute('href', encodedUri);
-  link.setAttribute(
-    'download',
-    `webinar_report_${selectedMonth.replace(' ', '_')}.csv`
-  );
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-});
-
-// Month filter change
+// =========================
+// FILTER EVENT
+// =========================
 monthFilter.addEventListener('change', function () {
   const selectedMonth = this.value;
   renderWebinarList(selectedMonth);
   updateSummaryStats(selectedMonth);
 });
 
-// Initialize the app
+// =========================
+// INIT
+// =========================
 init();
