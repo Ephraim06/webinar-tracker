@@ -1,4 +1,3 @@
-// app.js - Complete MySQL-based webinar management system
 // API base URL - Update this to your actual API endpoint
 const API_URL = "https://wiretree-digital.com/api";
 
