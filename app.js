@@ -275,32 +275,33 @@ webinarForm.addEventListener('submit', async (e) => {
   };
 
   try {
-    const response = await fetch(`${API_URL}/create-webinar.php`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(webinar)
-    });
+  const response = await fetch(`${API_URL}/create-webinar.php`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(webinar)
+  });
 
-    if (!response.ok) throw new Error('Failed to create webinar');
+  const result = await response.json(); // ✅ always read response
 
-    const data = await response.json();
-    webinars.unshift(data);
-    
-    webinarForm.reset();
-    renderWebinarList();
-    updateSummaryStats();
-    populateMonthFilter();
-    
-    showSnackbar('Webinar saved successfully!');
-  } catch (error) {
-    console.error('Error saving webinar:', error);
-    showSnackbar('Error saving webinar. Please try again.');
-  } finally {
-    submitBtn.disabled = false;
-    submitBtn.textContent = originalText;
+  if (!response.ok) {
+    console.error('SERVER ERROR:', result); // 🔥 THIS IS KEY
+    throw new Error(result.error || 'Unknown server error');
   }
+
+  webinars.unshift(result);
+  
+  webinarForm.reset();
+  renderWebinarList();
+  updateSummaryStats();
+  populateMonthFilter();
+  
+  showSnackbar('Webinar saved successfully!');
+} catch (error) {
+  console.error('Error saving webinar:', error);
+  showSnackbar(error.message); // ✅ show real error
+}
 });
 
 // =========================
