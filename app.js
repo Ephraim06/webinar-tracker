@@ -1,5 +1,5 @@
-// API base URL - Update this to your actual API endpoint
-const API_URL = "https://wiretree-digital.com/api";
+// API base URL
+const API_URL = "https://www.wiretree-digital.com/api";
 
 // DOM elements
 const webinarForm = document.getElementById('webinarForm');
