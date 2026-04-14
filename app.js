@@ -1,5 +1,5 @@
 // API base URL
-const API_URL = "https://www.wiretree-digital.com/api";
+const API_URL = "https://api.wiretree-digital.com/api";
 
 // DOM elements
 const webinarForm = document.getElementById('webinarForm');
